@@ -75,6 +75,7 @@ $view_marker_alt = " views' title='";
 $video_marker_s = '<a id=video';
 $video_marker_e = '">';
 $href_marker = '" href="';
+$href_marker_alt = "' href=\"";
 $video_idx_s = $video_idx_e = 0;
 do {
   $found = false;
@@ -86,12 +87,20 @@ do {
     $found = true;
     $video_idx_e = strpos($html, $video_marker_e, $video_idx_s);
     $video_html = substr($html, $video_idx_s, $video_idx_e - $video_idx_s + 1);
+    $video_html = str_replace('view" ', 'views" ', $video_html);
 
     // Having found it, extract the views
+    $alt = false;
     $a = $b = $title_idx_s = strpos($video_html, $view_marker);
     if ($a === false) {
       // If the title contains double quotes, Youtube html uses singles
+      $alt = true;
       $a = $b = $title_idx_s = strpos($video_html, $view_marker_alt);
+      if ($a === false) {
+	$msg = "Unable to find match?\n";
+	$result = 1;
+	goto completed;
+      }
     }
     while ($a !== 0 && substr($video_html, --$a, 1) != ' ');
     $views = substr($video_html, $a + 1, $b - $a - 1);
@@ -120,6 +129,10 @@ do {
 	$dec .= '000000';
       }
       $views = $dec;
+
+    } else if (($d = strpos($views, 'No')) !== false) {
+      // Zero views
+      $views = 0;
     }
 
     // Remove commas if present
@@ -128,12 +141,18 @@ do {
     // Extract the title
     $title_idx_s += strlen($view_marker);
     $title_idx_e = $title_idx_s;
-    while($video_html[$title_idx_e++] !== '"');
+    if ($alt === false)
+      while($video_html[$title_idx_e++] !== '"');
+    else
+      while($video_html[$title_idx_e++] !== "'");
     $title_idx_e--;
     $title = substr($video_html, $title_idx_s, $title_idx_e - $title_idx_s);
 
     // Extract the URL
     $href_idx_s = strpos($video_html, $href_marker);
+    if ($href_idx_s === false) {
+      $href_idx_s = strpos($video_html, $href_marker_alt);
+    }
     $href_idx_s += strlen($href_marker);
     $href_idx_e = $href_idx_s;
     while($video_html[$href_idx_e++] !== '"');
